@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 .venv/
 arbitr_history.db
+api_keys.json

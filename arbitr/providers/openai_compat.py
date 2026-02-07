@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-import os
-
 import httpx
+
+from arbitr.api_keys import get_api_key
 
 from .base import LLMProvider
 
 
 class OpenAICompatibleProvider(LLMProvider):
-    def __init__(self, name: str, base_url: str, model: str, api_key_env: str):
+    def __init__(self, name: str, base_url: str, model: str, api_key_name: str):
         self.name = name
         self.base_url = base_url.rstrip("/")
         self.model = model
-        self.api_key_env = api_key_env
+        self.api_key_name = api_key_name
 
     async def complete(
         self,
@@ -21,9 +21,7 @@ class OpenAICompatibleProvider(LLMProvider):
         max_tokens: int = 1200,
         timeout_s: float = 60.0,
     ) -> str:
-        api_key = os.getenv(self.api_key_env)
-        if not api_key:
-            raise RuntimeError(f"Missing API key env var: {self.api_key_env}")
+        api_key = get_api_key(self.api_key_name)
 
         payload = {
             "model": self.model,

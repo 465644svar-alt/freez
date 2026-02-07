@@ -31,14 +31,11 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-Set API keys:
+Set API keys in `api_keys.json` (local file, not committed):
 
 ```bash
-export OPENAI_API_KEY=...
-export DEEPSEEK_API_KEY=...
-export ANTHROPIC_API_KEY=...
-export MISTRAL_API_KEY=...
-export GROQ_API_KEY=...
+cp api_keys.example.json api_keys.json
+# then fill values in api_keys.json
 ```
 
 Run app:

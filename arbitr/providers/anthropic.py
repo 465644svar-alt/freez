@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import os
-
 import httpx
+
+from arbitr.api_keys import get_api_key
 
 from .base import LLMProvider
 
@@ -19,9 +19,7 @@ class AnthropicProvider(LLMProvider):
         max_tokens: int = 1200,
         timeout_s: float = 60.0,
     ) -> str:
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise RuntimeError("Missing API key env var: ANTHROPIC_API_KEY")
+        api_key = get_api_key("ANTHROPIC_API_KEY")
 
         user_content = "\n\n".join([m["content"] for m in messages if m["role"] == "user"])
         payload = {

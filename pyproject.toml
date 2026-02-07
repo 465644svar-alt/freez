@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arbitr"
+version = "0.1.0"
+description = "LLM arbitration desktop app"
+requires-python = ">=3.11"
+dependencies = [
+  "PySide6>=6.7",
+  "httpx>=0.27",
+  "pydantic>=2.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+arbitr = "arbitr.app:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,104 @@
+name: Build OurChat Core 2.65 Sync Text Lane
+
+on:
+  push:
+    branches:
+      - ourchat-core-2-65-sync-text-lane
+    paths:
+      - .github/workflows/build-core-2-65-sync-text-lane.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build-win64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout build harness
+        uses: actions/checkout@v7
+
+      - name: Checkout Chatmail Core v2.65.0
+        uses: actions/checkout@v7
+        with:
+          repository: chatmail/core
+          ref: v2.65.0
+          path: core
+          persist-credentials: false
+
+      - name: Patch JSON-RPC plain text path to send_msg_sync
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("core/deltachat-jsonrpc/src/api.rs")
+          text = path.read_text(encoding="utf-8")
+
+          old = """    async fn misc_send_text_message(
+              &self,
+              account_id: u32,
+              chat_id: u32,
+              text: String,
+          ) -> Result<u32> {
+              let ctx = self.get_context(account_id).await?;
+
+              let mut msg = Message::new_text(text);
+
+              let message_id = deltachat::chat::send_msg(&ctx, ChatId::new(chat_id), &mut msg).await?;
+              Ok(message_id.to_u32())
+          }
+          """
+
+          new = """    async fn misc_send_text_message(
+              &self,
+              account_id: u32,
+              chat_id: u32,
+              text: String,
+          ) -> Result<u32> {
+              let ctx = self.get_context(account_id).await?;
+
+              let mut msg = Message::new_text(text);
+
+              // OurChat interactive text lane:
+              // use a dedicated SMTP connection so plain text is not blocked by
+              // a large post-message already being uploaded by the normal SMTP loop.
+              let message_id =
+                  deltachat::chat::send_msg_sync(&ctx, ChatId::new(chat_id), &mut msg).await?;
+              Ok(message_id.to_u32())
+          }
+          """
+
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f"Expected exactly one misc_send_text_message block, found {count}")
+
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          print("PATCH_OK: misc_send_text_message now uses send_msg_sync")
+
+      - name: Verify narrow patch
+        working-directory: core
+        run: |
+          git diff --check
+          git diff -- deltachat-jsonrpc/src/api.rs
+          grep -n -A18 -B3 "async fn misc_send_text_message" deltachat-jsonrpc/src/api.rs
+          grep -n "send_msg_sync" deltachat-jsonrpc/src/api.rs
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24
+
+      - name: Build Windows x64 RPC server
+        working-directory: core
+        run: nix build .#deltachat-rpc-server-win64
+
+      - name: Verify binary
+        run: |
+          test -f core/result/bin/deltachat-rpc-server.exe
+          sha256sum core/result/bin/deltachat-rpc-server.exe
+          file core/result/bin/deltachat-rpc-server.exe
+
+      - name: Upload patched RPC server
+        uses: actions/upload-artifact@v7
+        with:
+          name: ourchat-core-2.65-sync-text-win64
+          path: core/result/bin/deltachat-rpc-server.exe
+          if-no-files-found: error
+          retention-days: 7

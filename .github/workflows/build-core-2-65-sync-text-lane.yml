@@ -29,49 +29,34 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           path = Path("core/deltachat-jsonrpc/src/api.rs")
           text = path.read_text(encoding="utf-8")
 
-          old = """    async fn misc_send_text_message(
-              &self,
-              account_id: u32,
-              chat_id: u32,
-              text: String,
-          ) -> Result<u32> {
-              let ctx = self.get_context(account_id).await?;
+          pattern = re.compile(
+              r"(async fn misc_send_text_message\(.*?"
+              r"let mut msg = Message::new_text\(text\);\s*)"
+              r"let message_id = deltachat::chat::send_msg\("
+              r"&ctx, ChatId::new\(chat_id\), &mut msg\)\.await\?;",
+              re.S,
+          )
 
-              let mut msg = Message::new_text(text);
+          replacement = (
+              r"\1"
+              "// OurChat interactive text lane:\n"
+              "        // use a dedicated SMTP connection so plain text is not blocked by\n"
+              "        // a large post-message already being uploaded by the normal SMTP loop.\n"
+              "        let message_id = deltachat::chat::send_msg_sync(\n"
+              "            &ctx, ChatId::new(chat_id), &mut msg\n"
+              "        ).await?;"
+          )
 
-              let message_id = deltachat::chat::send_msg(&ctx, ChatId::new(chat_id), &mut msg).await?;
-              Ok(message_id.to_u32())
-          }
-          """
-
-          new = """    async fn misc_send_text_message(
-              &self,
-              account_id: u32,
-              chat_id: u32,
-              text: String,
-          ) -> Result<u32> {
-              let ctx = self.get_context(account_id).await?;
-
-              let mut msg = Message::new_text(text);
-
-              // OurChat interactive text lane:
-              // use a dedicated SMTP connection so plain text is not blocked by
-              // a large post-message already being uploaded by the normal SMTP loop.
-              let message_id =
-                  deltachat::chat::send_msg_sync(&ctx, ChatId::new(chat_id), &mut msg).await?;
-              Ok(message_id.to_u32())
-          }
-          """
-
-          count = text.count(old)
+          text, count = pattern.subn(replacement, text, count=1)
           if count != 1:
-              raise SystemExit(f"Expected exactly one misc_send_text_message block, found {count}")
+              raise SystemExit(f"Expected exactly one misc_send_text_message patch, found {count}")
 
-          path.write_text(text.replace(old, new), encoding="utf-8")
+          path.write_text(text, encoding="utf-8")
           print("PATCH_OK: misc_send_text_message now uses send_msg_sync")
 
       - name: Verify narrow patch
@@ -79,8 +64,8 @@ jobs:
         run: |
           git diff --check
           git diff -- deltachat-jsonrpc/src/api.rs
-          grep -n -A18 -B3 "async fn misc_send_text_message" deltachat-jsonrpc/src/api.rs
-          grep -n "send_msg_sync" deltachat-jsonrpc/src/api.rs
+          grep -n -A20 -B3 "async fn misc_send_text_message" deltachat-jsonrpc/src/api.rs
+          test "$(grep -c 'send_msg_sync' deltachat-jsonrpc/src/api.rs)" -eq 1
 
       - name: Install Nix
         uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24

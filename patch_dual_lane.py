@@ -200,7 +200,7 @@ pub(crate) fn wake_ourchat_interactive_smtp_worker(context: &Context) {
                     Ok(false) => {
                         retry_secs = 1;
                         drop(ctx);
-                        worker_notify.notified().await;
+                        worker_worker_notify.notified().await;
                     }
                     Err(err) => {
                         warn!(
@@ -220,7 +220,7 @@ pub(crate) fn wake_ourchat_interactive_smtp_worker(context: &Context) {
                         // earlier; FIFO is still preserved by the lane query itself.
                         tokio::select! {
                             _ = tokio::time::sleep(wait) => {},
-                            _ = notify.notified() => {},
+                            _ = worker_notify.notified() => {},
                         }
                     }
                 }

@@ -200,7 +200,7 @@ pub(crate) fn wake_ourchat_interactive_smtp_worker(context: &Context) {
                     Ok(false) => {
                         retry_secs = 1;
                         drop(ctx);
-                        worker_worker_notify.notified().await;
+                        worker_notify.notified().await;
                     }
                     Err(err) => {
                         warn!(

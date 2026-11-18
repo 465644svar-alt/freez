@@ -390,6 +390,20 @@ text = replace_once(
 
 text = replace_once(
     text,
+    "        if !create_send_msg_jobs(ctx_dst, &mut msg).await?.is_empty() {\n",
+    "        if !create_send_msg_jobs(ctx_dst, &mut msg, false).await?.is_empty() {\n",
+    "forward create jobs call",
+)
+
+text = replace_once(
+    text,
+    "        if create_send_msg_jobs(context, &mut msg).await?.is_empty() {\n",
+    "        if create_send_msg_jobs(context, &mut msg, false).await?.is_empty() {\n",
+    "broadcast create jobs call",
+)
+
+text = replace_once(
+    text,
     "async fn create_send_msg_jobs(context: &Context, msg: &mut Message) -> Result<Vec<i64>> {\n",
     "async fn create_send_msg_jobs(\n    context: &Context,\n    msg: &mut Message,\n    interactive: bool,\n) -> Result<Vec<i64>> {\n",
     "create_send_msg_jobs signature",

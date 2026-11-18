@@ -472,13 +472,19 @@ write(path, text)
 path = "deltachat-jsonrpc/src/api.rs"
 text = read(path)
 
-text = replace_once(
-    text,
-    "        let message_id = deltachat::chat::send_msg(&ctx, ChatId::new(chat_id), &mut msg).await?;\n",
-    "        let message_id =\n"
-    "            deltachat::chat::send_msg_interactive(&ctx, ChatId::new(chat_id), &mut msg).await?;\n",
-    "jsonrpc interactive entry",
+pattern = re.compile(
+    r"(async fn misc_send_text_message\(.*?let mut msg = Message::new_text\(text\);\s*)"
+    r"let message_id = deltachat::chat::send_msg\(&ctx, ChatId::new\(chat_id\), &mut msg\)\.await\?;",
+    re.S,
 )
+replacement = (
+    r"\1"
+    "let message_id =\n"
+    "            deltachat::chat::send_msg_interactive(&ctx, ChatId::new(chat_id), &mut msg).await?;"
+)
+text, count = pattern.subn(replacement, text, count=1)
+if count != 1:
+    raise SystemExit(f"jsonrpc interactive entry: expected exactly 1 scoped match, found {count}")
 write(path, text)
 
 print("PATCH_OK: persistent dual-lane SMTP patch applied")

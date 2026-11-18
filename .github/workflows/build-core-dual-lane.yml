@@ -1,0 +1,60 @@
+name: Build OurChat Core 2.65 Persistent Dual Lane
+
+on:
+  push:
+    branches:
+      - ourchat-core-2-65-dual-lane-v1
+    paths:
+      - patch_dual_lane.py
+      - .github/workflows/build-core-dual-lane.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build-win64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout harness
+        uses: actions/checkout@v7
+
+      - name: Checkout Chatmail Core v2.65.0
+        uses: actions/checkout@v7
+        with:
+          repository: chatmail/core
+          ref: v2.65.0
+          path: core
+          persist-credentials: false
+
+      - name: Apply persistent dual-lane patch
+        run: python patch_dual_lane.py
+
+      - name: Format and verify narrow diff
+        working-directory: core
+        run: |
+          cargo fmt --all
+          git diff --check
+          git diff -- src/context.rs src/smtp.rs src/chat.rs deltachat-jsonrpc/src/api.rs
+          grep -R -n "ourchat_smtp_lane_v1\|OurChat interactive SMTP lane\|send_msg_interactive" \
+            src/context.rs src/smtp.rs src/chat.rs deltachat-jsonrpc/src/api.rs
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24
+
+      - name: Build Windows x64 RPC server
+        working-directory: core
+        run: nix build .#deltachat-rpc-server-win64
+
+      - name: Verify binary
+        run: |
+          test -f core/result/bin/deltachat-rpc-server.exe
+          sha256sum core/result/bin/deltachat-rpc-server.exe
+          file core/result/bin/deltachat-rpc-server.exe
+
+      - name: Upload patched RPC server
+        uses: actions/upload-artifact@v7
+        with:
+          name: ourchat-core-2.65-persistent-dual-lane-win64
+          path: core/result/bin/deltachat-rpc-server.exe
+          if-no-files-found: error
+          retention-days: 7

@@ -43,7 +43,7 @@ jobs:
 
       - name: Build Windows x64 RPC server
         working-directory: core
-        run: nix build .#deltachat-rpc-server-win64
+        run: nix build -L .#deltachat-rpc-server-win64
 
       - name: Verify binary
         run: |

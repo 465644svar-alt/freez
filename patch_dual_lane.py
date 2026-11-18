@@ -179,6 +179,7 @@ pub(crate) fn wake_ourchat_interactive_smtp_worker(context: &Context) {
         .swap(true, Ordering::AcqRel)
     {
         let weak = context.get_weak_context();
+        let worker_notify = notify.clone();
 
         task::spawn(async move {
             let mut connection = Smtp::new();
@@ -199,7 +200,7 @@ pub(crate) fn wake_ourchat_interactive_smtp_worker(context: &Context) {
                     Ok(false) => {
                         retry_secs = 1;
                         drop(ctx);
-                        notify.notified().await;
+                        worker_notify.notified().await;
                     }
                     Err(err) => {
                         warn!(
